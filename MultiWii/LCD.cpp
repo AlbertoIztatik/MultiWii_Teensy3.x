@@ -885,7 +885,8 @@ static uint8_t reset_to_defaults;
 typedef void (*formatter_func_ptr)(void *, uint8_t, uint8_t);
 typedef void (*inc_func_ptr)(void *, int16_t);
 
-/*typedef*/struct lcd_type_desc_t {
+///*typedef*/struct lcd_type_desc_t {
+/*typedef*/struct __attribute__ ((packed)) lcd_type_desc_t {
   formatter_func_ptr fmt;
   inc_func_ptr inc;
 };
@@ -901,7 +902,8 @@ static lcd_type_desc_t LAUX2 = {&__uAuxFmt2, &__u16Inc};
 static lcd_type_desc_t LAUX3 = {&__uAuxFmt3, &__u16Inc};
 static lcd_type_desc_t LAUX4 = {&__uAuxFmt4, &__u16Inc};
 
-/*typedef*/struct lcd_param_def_t {
+///*typedef*/struct lcd_param_def_t {
+/*typedef*/struct __attribute__ ((packed)) lcd_param_def_t {
   lcd_type_desc_t * type;
   uint8_t decimal;
   uint8_t multiplier;
@@ -1551,7 +1553,6 @@ void configurationLoop() {
       refreshLCD = 0;
     }
     #if defined(SERIAL_RX)
-      delay(10); // may help with timing for some serial receivers -1/100 second seems non-critical here?
       if (spekFrameFlags == 0x01) readSerial_RX();
       delay(44); // For digital receivers , to ensure that an "old" frame does not cause immediate exit at startup. 
     #endif
@@ -1981,7 +1982,7 @@ void print_uptime(uint16_t sec) {
 #if GPS
 void fill_line1_gps_lat(uint8_t sat) {
   int32_t aGPS_latitude = abs(GPS_coord[LAT]);
-  strcpy_P(line1,PSTR(".---.------- #--"));
+  strcpy_P(line1,PSTR(".---.------- #  "));
   //                   0123456789012345
   line1[0] = GPS_coord[LAT]<0?'S':'N';
   if (sat) {

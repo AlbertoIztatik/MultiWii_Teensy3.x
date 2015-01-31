@@ -114,17 +114,6 @@
   #define ITG3200
   #define PID_CONTROLLER 2
   #define ESC_CALIB_CANNOT_FLY
-#elif COPTERTEST == 9
-  #define AIRPLANE
-  #define FREEIMUv035
-  #define POWERMETER_HARD
-  #define WATTS
-  #define VBAT
-  #define VBAT_CELLS
-  #define VBAT_CELLS_NUM 3
-  #define VBAT_CELLS_PINS {A0, A1, A2 }
-  #define VBAT_CELLS_OFFSETS {0, 50, 83 }
-  #define VBAT_CELLS_DIVS { 75, 122,  98 }
 #elif defined(COPTERTEST)
   #error "*** this test is not yet defined"
 #endif
@@ -143,8 +132,18 @@
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega1281__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)
   #define MEGA
 #endif
-
-
+#if defined(__MK20DX128__) || defined(__MK20DX256__)
+  #define TEENSY3X
+#endif
+#if defined (TEENSY3X)
+  #define FLOAT float32_t
+    // check pgmspace.h in avr .... they are not  used in STM
+    #include <avr/pgmspace.h>
+//  #define ARM_MATH_CM3
+    #include "arm_math.h"
+#else
+    #define FLOAT float
+#endif
 /**************************************************************************************/
 /***************             motor and servo numbers               ********************/
 /**************************************************************************************/
@@ -668,6 +667,115 @@
   #define SERVO_4_PIN_LOW            ;
 #endif
 
+/**************************  mk20dx128vlh5 & mk20dx256vlh7 (Teensy 3.x)  ***********************************/
+/*
+LEDPIN_PINMODE - (STatus)
+BUZZERPIN_PINMODE:PL_PIN_ON/OFF or BUZZERPIN_ON/OFF - (Lipo)
+STABLEPIN_PINMODE - (Stable)
+POWERPIN_PINMODE - (initSensors?)
+
+pinMode (27, OUTPUT);//LEDPIN_PINMODE
+pinMode (28, OUTPUT);//BUZZERPIN_PINMODE
+pinMode (24, OUTPUT);//POWERPIN_PINMODE(A12)
+pinMode (15, OUTPUT);//STABLEPIN_PINMODE(A13)
+
+pullup = I2C_PULLUP_EXT, I2C_PULLUP_INT
+*/
+
+
+
+#if defined(TEENSY3X)
+  #define LEDPIN_PINMODE           pinMode (27, OUTPUT);
+  #define LEDPIN_TOGGLE            digitalWrite(27,!digitalRead(27));//switch LEDPIN state
+  #define LEDPIN_OFF               digitalWrite(27,HIGH);
+  #define LEDPIN_ON                digitalWrite(27,LOW);
+  
+  #define BUZZERPIN_PINMODE        pinMode (28, OUTPUT);
+  #if defined PILOTLAMP
+    #define PL_PIN_ON              digitalWrite(28,HIGH);
+    #define PL_PIN_OFF             digitalWrite(28,LOW);
+  #else
+    #define BUZZERPIN_ON           digitalWrite(28,HIGH);
+    #define BUZZERPIN_OFF          digitalWrite(28,LOW);
+  #endif 
+
+  #define POWERPIN_PINMODE         pinMode (24, OUTPUT);
+  #define POWERPIN_ON              digitalWrite(24,HIGH);
+  #define POWERPIN_OFF             digitalWrite(24,LOW);
+  #define I2C_PULLUPS_ENABLE       I2C_PULLUP_INT
+  #define I2C_PULLUPS_DISABLE      I2C_PULLUP_EXT
+  #define PINMODE_LCD              ;//unused
+  #define LCDPIN_OFF               ;//unused
+  #define LCDPIN_ON                ;//unused
+  #define STABLEPIN_PINMODE        pinMode (15, OUTPUT);
+  #define STABLEPIN_ON             digitalWrite(15,HIGH);
+  #define STABLEPIN_OFF            digitalWrite(15,LOW);
+  #define PPM_PIN_INTERRUPT        ;//unused
+
+  #define RX_SERIAL_PORT           1
+  
+  //soft PWM Pins  
+  #define SOFT_PWM_1_PIN_HIGH        ;
+  #define SOFT_PWM_1_PIN_LOW         ;
+  #define SOFT_PWM_2_PIN_HIGH        ;
+  #define SOFT_PWM_2_PIN_LOW         ;
+  #define SOFT_PWM_3_PIN_HIGH        ;
+  #define SOFT_PWM_3_PIN_LOW         ;
+  #define SOFT_PWM_4_PIN_HIGH        ;
+  #define SOFT_PWM_4_PIN_LOW         ;
+  #define SW_PWM_P3                  ;     
+  #define SW_PWM_P4                  ;
+
+  
+  // Servos(Timer1)
+  #define SERVO_1_PINMODE   pinMode (5, OUTPUT);
+  #define SERVO_1_PIN_HIGH  digitalWrite(5,HIGH);
+  #define SERVO_1_PIN_LOW   digitalWrite(5,LOW);
+  #define SERVO_2_PINMODE   pinMode (6, OUTPUT);
+  #define SERVO_2_PIN_HIGH  digitalWrite(6,HIGH);
+  #define SERVO_2_PIN_LOW   digitalWrite(6,LOW);
+  #define SERVO_3_PINMODE   pinMode (6, OUTPUT);
+  #define SERVO_3_PIN_HIGH  digitalWrite(9,HIGH);
+  #define SERVO_3_PIN_LOW   digitalWrite(9,LOW);
+  #define SERVO_4_PINMODE   pinMode (10, OUTPUT);
+  #define SERVO_4_PIN_HIGH  digitalWrite(10,HIGH);
+  #define SERVO_4_PIN_LOW   digitalWrite(10,LOW);
+  #define SERVO_5_PINMODE   pinMode (20, OUTPUT);
+  #define SERVO_5_PIN_HIGH  digitalWrite(20,HIGH);
+  #define SERVO_5_PIN_LOW   digitalWrite(20,LOW);
+  #define SERVO_6_PINMODE   pinMode (21, OUTPUT);
+  #define SERVO_6_PIN_HIGH  digitalWrite(21,HIGH);
+  #define SERVO_6_PIN_LOW   digitalWrite(21,LOW);
+  #define SERVO_7_PINMODE   pinMode (22, OUTPUT);
+  #define SERVO_7_PIN_HIGH  digitalWrite(22,HIGH);
+  #define SERVO_7_PIN_LOW   digitalWrite(22,LOW);
+  #define SERVO_8_PINMODE   pinMode (23, OUTPUT);
+  #define SERVO_8_PIN_HIGH  digitalWrite(23,HIGH);
+  #define SERVO_8_PIN_LOW   digitalWrite(23,LOW);
+  
+  //Standart RX(unused)
+  #define THROTTLEPIN                  0//unused
+  #define ROLLPIN                      0//unused
+  #define PITCHPIN                     0//unused
+  #define YAWPIN                       0//unused
+  #define AUX1PIN                      0//unused
+  #define AUX2PIN                      0//unused
+  #define AUX3PIN                      0//unused
+  #define AUX4PIN                      0//unused
+
+  #define PCINT_PIN_COUNT          4
+  #define PCINT_RX_BITS            (1<<1),(1<<2),(1<<3),(1<<4)
+
+//  #define PCINT_RX_PORT                PORTB
+//  #define PCINT_RX_MASK                PCMSK0
+//  #define PCIR_PORT_BIT                (1<<0)
+//  #define RX_PC_INTERRUPT              PCINT0_vect
+//  #define RX_PCINT_PIN_PORT            PINB
+
+
+  #define V_BATPIN                  A20 // Analog PIN 20
+  //#define PSENSORPIN              XX //unused
+#endif
 
 /**********************   Sort the Servos for the most ideal SW PWM     ************************/
 // this define block sorts the above slected servos to be in a simple order from 1 - (count of total servos)
@@ -1409,7 +1517,7 @@
   #undef INTERNAL_I2C_PULLUPS 
 #endif
 
-#if defined(CRIUS_AIO_PRO) 
+#if defined(CRIUS_AIO_PRO_V1) 
   #define MPU6050 
   #define HMC5883 
   #define MS561101BA 
@@ -1666,7 +1774,7 @@
   #define GPS 0
 #endif
 
-#if defined(USE_MSP_WP)
+#if defined(GPS_SERIAL)
   #define NAVCAP 1
 #else
   #define NAVCAP 0

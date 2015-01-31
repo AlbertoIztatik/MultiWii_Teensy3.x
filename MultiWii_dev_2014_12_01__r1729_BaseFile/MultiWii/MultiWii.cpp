@@ -195,9 +195,7 @@ flags_struct_t f;
   uint16_t cycleTimeMin = 65535;   // lowest ever cycle timen
   int32_t  BAROaltMax;             // maximum value
   uint16_t GPS_speedMax = 0;       // maximum speed from gps
-  #ifdef POWERMETER_HARD
-    uint16_t powerValueMaxMAH = 0;
-  #endif
+  uint16_t powerValueMaxMAH = 0;
   #if defined(WATTS)
     uint16_t wattsMax = 0;
   #endif
@@ -207,6 +205,7 @@ flags_struct_t f;
 #endif
 
 int16_t  i2c_errors_count = 0;
+
 
 
 #if defined(THROTTLE_ANGLE_CORRECTION)
@@ -514,7 +513,7 @@ void annexCode() { // this code is excetuted at each loop and won't interfere wi
   } // end default
   } // end of switch()
 
-#if defined( POWERMETER_HARD ) && (defined(LOG_VALUES) || defined(LCD_TELEMETRY))
+#ifdef POWERMETER_HARD
   if (analog.amperage > powerValueMaxMAH) powerValueMaxMAH = analog.amperage;
 #endif
 
@@ -772,11 +771,6 @@ void go_arm() {
       #if defined(VBAT)
         if (analog.vbat > NO_VBAT) vbatMin = analog.vbat;
       #endif
-      #ifdef ALTITUDE_RESET_ON_ARM
-        #if BARO
-          calibratingB = 10; // calibrate baro to new ground level (10 * 25 ms = ~250 ms non blocking)
-        #endif
-      #endif
       #ifdef LCD_TELEMETRY // reset some values when arming
         #if BARO
           BAROaltMax = alt.EstAlt;
@@ -784,7 +778,7 @@ void go_arm() {
         #if GPS
           GPS_speedMax = 0;
         #endif
-        #if defined( POWERMETER_HARD ) && (defined(LOG_VALUES) || defined(LCD_TELEMETRY))
+        #ifdef POWERMETER_HARD
           powerValueMaxMAH = 0;
         #endif
         #ifdef WATTS
@@ -933,8 +927,8 @@ void loop () {
             }else{ 
               AccInflightCalibrationArmed = !AccInflightCalibrationArmed; 
               #if defined(BUZZER)
-                if (AccInflightCalibrationArmed) SET_ALARM_BUZZER(ALRM_FAC_TOGGLE, ALRM_LVL_TOGGLE_2);
-                else     SET_ALARM_BUZZER(ALRM_FAC_TOGGLE, ALRM_LVL_TOGGLE_ELSE);
+               if (AccInflightCalibrationArmed) SET_ALARM_BUZZER(ALRM_FAC_TOGGLE, ALRM_LVL_TOGGLE_2);
+               else     SET_ALARM_BUZZER(ALRM_FAC_TOGGLE, ALRM_LVL_TOGGLE_ELSE);
               #endif
             }
          } 
@@ -1049,9 +1043,7 @@ void loop () {
           f.ANGLE_MODE = 1;
         }  
       } else {
-        if(f.ANGLE_MODE){
-          errorGyroI[ROLL] = 0; errorGyroI[PITCH] = 0;
-        }
+        // failsafe support
         f.ANGLE_MODE = 0;
       }
       if ( rcOptions[BOXHORIZON] ) {
@@ -1061,9 +1053,6 @@ void loop () {
           f.HORIZON_MODE = 1;
         }
       } else {
-        if(f.HORIZON_MODE){
-          errorGyroI[ROLL] = 0;errorGyroI[PITCH] = 0;
-        }
         f.HORIZON_MODE = 0;
       }
     #endif

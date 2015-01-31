@@ -68,7 +68,7 @@ int32_t LeadFilter::get_position(int32_t pos, int16_t vel, float lag_in_seconds)
 LeadFilter xLeadFilter;      // Long GPS lag filter 
 LeadFilter yLeadFilter;      // Lat  GPS lag filter 
 
-typedef struct PID_PARAM_ {
+typedef struct __attribute__ ((packed)) PID_PARAM_ {
   float kP;
   float kI;
   float kD;
@@ -79,7 +79,7 @@ PID_PARAM posholdPID_PARAM;
 PID_PARAM poshold_ratePID_PARAM;
 PID_PARAM navPID_PARAM;
 
-typedef struct PID_ {
+typedef struct __attribute__ ((packed)) PID_ {
   float   integrator; // integrator value
   int32_t last_input; // last input for derivative
   float   lastderivative; // last derivative for low-pass filter
@@ -465,6 +465,8 @@ uint8_t GPS_Compute(void) {
   return 1;
 } // End of GPS_compute
 
+  
+  
 // Abort current mission with the given error code (switch to poshold_infinit)
 void abort_mission(unsigned char error_code) {
   GPS_set_next_wp(&GPS_coord[LAT], &GPS_coord[LON],&GPS_coord[LAT], &GPS_coord[LON]);
@@ -478,7 +480,7 @@ void GPS_adjust_heading() {
   //This controls the heading
   if (f.GPS_head_set) { // We have seen a SET_POI or a SET_HEADING command
     if (GPS_poi[LAT] == 0)
-      magHold = wrap_18000((GPS_directionToPoi*100))/100;
+      magHold = wrap_18000((GPS_directionToPoi*100)-18000)/100;
     else {
       GPS_bearing(&GPS_coord[LAT],&GPS_coord[LON],&GPS_poi[LAT],&GPS_poi[LON],&GPS_directionToPoi);
       GPS_distance_cm(&GPS_coord[LAT],&GPS_coord[LON],&GPS_poi[LAT],&GPS_poi[LON],&wp_distance);
@@ -1093,14 +1095,14 @@ const char UBLOX_INIT[] PROGMEM = {                                             
   0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0xC8, 0x00, 0x01, 0x00, 0x01, 0x00, 0xDE, 0x6A //set rate to 5Hz
 };
 
-struct ubx_header {
+struct __attribute__ ((packed)) ubx_header {
   uint8_t preamble1;
   uint8_t preamble2;
   uint8_t msg_class;
   uint8_t msg_id;
   uint16_t length;
 };
-struct ubx_nav_posllh {
+struct __attribute__ ((packed)) ubx_nav_posllh {
   uint32_t time;  // GPS msToW
   int32_t longitude;
   int32_t latitude;
@@ -1109,7 +1111,7 @@ struct ubx_nav_posllh {
   uint32_t horizontal_accuracy;
   uint32_t vertical_accuracy;
 };
-struct ubx_nav_solution {
+struct __attribute__ ((packed)) ubx_nav_solution {
   uint32_t time;
   int32_t time_nsec;
   int16_t week;
@@ -1128,7 +1130,7 @@ struct ubx_nav_solution {
   uint8_t satellites;
   uint32_t res2;
 };
-struct ubx_nav_velned {
+struct __attribute__ ((packed)) ubx_nav_velned {
   uint32_t time;  // GPS msToW
   int32_t ned_north;
   int32_t ned_east;
@@ -1170,7 +1172,7 @@ enum ubx_nav_status_bits {
 };
 
 // Receive buffer
-static union {
+static union __attribute__ ((packed)) {
   ubx_nav_posllh posllh;
   ubx_nav_solution solution;
   ubx_nav_velned velned;
@@ -1292,7 +1294,7 @@ bool GPS_newFrame(uint8_t data){
 #define WAAS_ON                 PSTR("$PMTK301,2*2E\r\n")
 #define SBAS_TEST_MODE          PSTR("$PMTK319,0*25\r\n")  //Enable test use of sbas satelite in test mode (usually PRN124 is in test mode)
 
-struct diyd_mtk_msg {
+struct __attribute__ ((packed)) diyd_mtk_msg {
   int32_t  latitude;
   int32_t  longitude;
   int32_t  altitude;
@@ -1341,14 +1343,14 @@ long  _time_offset;
 bool  _offset_calculated;
 
 // Receive buffer
-union {
+union __attribute__ ((packed)) {
   diyd_mtk_msg  msg;
   uint8_t       bytes[];
 } _buffer;
 
 inline long _swapl(const void *bytes) {
   const uint8_t *b = (const uint8_t *)bytes;
-  union {
+  union __attribute__ ((packed)) {
     long    v;
     uint8_t b[4];
   } u;
@@ -1498,10 +1500,10 @@ bool GPS_newFrame(uint8_t data) {
 #define I2C_GPS_ADDRESS               0x20 //7 bits       
 
 #define I2C_GPS_STATUS_00             00    //(Read only)
-  #define I2C_GPS_STATUS_NEW_DATA       0x01  // New data is available (after every GGA frame)
-  #define I2C_GPS_STATUS_2DFIX          0x02  // 2dfix achieved
-  #define I2C_GPS_STATUS_3DFIX          0x04  // 3dfix achieved
-  #define I2C_GPS_STATUS_NUMSATS        0xF0  // Number of sats in view
+#define I2C_GPS_STATUS_NEW_DATA       0x01  // New data is available (after every GGA frame)
+#define I2C_GPS_STATUS_2DFIX          0x02  // 2dfix achieved
+#define I2C_GPS_STATUS_3DFIX          0x04  // 3dfix achieved
+#define I2C_GPS_STATUS_NUMSATS        0xF0  // Number of sats in view
 #define I2C_GPS_LOCATION              07    // current location 8 byte (lat, lon) int32_t
 #define I2C_GPS_GROUND_SPEED          31    // GPS ground speed in m/s*100 (uint16_t)      (Read Only)
 #define I2C_GPS_ALTITUDE              33    // GPS altitude in meters (uint16_t)           (Read Only)
@@ -1537,7 +1539,6 @@ uint8_t GPS_NewData(void) {
   return 0;
 }
 #endif //I2C_GPS
-
 
 
 #endif // GPS Defined

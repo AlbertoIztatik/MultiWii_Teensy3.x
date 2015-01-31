@@ -111,8 +111,10 @@ static void serialize8(uint8_t a) {
   checksum[CURRENTPORT] ^= a;
 }
 static void serialize16(int16_t a) {
-  serialize8((a   ) & 0xFF);
-  serialize8((a>>8) & 0xFF);
+//  serialize8((a   ) & 0xFF);
+//  serialize8((a>>8) & 0xFF);
+  serialize8(((uint8_t)(a   )) & 0xFF);
+  serialize8((uint8_t)(((int16_t)(a>>8)) & 0xFF));
 }
 static void serialize32(uint32_t a) {
   serialize8((a    ) & 0xFF);
@@ -143,28 +145,28 @@ static void tailSerialReply() {
 }
 
 static void serializeNames(PGM_P s) {
-  headSerialReply(strlen_P(s));
+  #if !defined (TEENSY3X)
+    headSerialReply(strlen_P(s));
+  #else
+    headSerialReply(strlen(s));
+  #endif
   for (PGM_P c = s; pgm_read_byte(c); c++)
     serialize8(pgm_read_byte(c));
   tailSerialReply();
 }
 
-static void __attribute__ ((noinline)) s_struct_w(uint8_t *cb,uint8_t siz) {
-  while(siz--) *cb++ = read8();
-}
-
-static void s_struct_partial(uint8_t *cb,uint8_t siz) {
-  while(siz--) serialize8(*cb++);
-}
-
 static void s_struct(uint8_t *cb,uint8_t siz) {
   headSerialReply(siz);
-  s_struct_partial(cb,siz);
+  while(siz--) serialize8(*cb++);
   tailSerialReply();
 }
 
 static void mspAck() {
   headSerialReply(0);tailSerialReply();
+}
+
+static void __attribute__ ((noinline)) s_struct_w(uint8_t *cb,uint8_t siz) {
+  while(siz--) *cb++ = read8();
 }
 
 enum MSP_protocol_bytes {
@@ -197,7 +199,7 @@ void serialCom() {
       c = SerialRead(port);
       #ifdef SUPPRESS_ALL_SERIAL_MSP
         evaluateOtherData(c); // no MSP handling, so go directly
-      #else //SUPPRESS_ALL_SERIAL_MSP
+      #else
         state = c_state[port];
         // regular data handling to detect and handle MSP and other data
         if (state == IDLE) {
@@ -238,6 +240,7 @@ void serialCom() {
         #if defined(GPS_SERIAL)
         if (GPS_SERIAL == port) {
           static uint32_t GPS_last_frame_seen; //Last gps frame seen at this time, used to detect stalled gps communication
+  
           if (GPS_newFrame(c)) {
             //We had a valid GPS data frame, so signal task scheduler to switch to compute
             if (GPS_update == 1) GPS_update = 0; else GPS_update = 1; //Blink GPS update
@@ -255,18 +258,17 @@ void serialCom() {
         if (micros()-timeMax>250) return;  // Limit the maximum execution time of serial decoding to avoid time spike
         #endif
       #endif // SUPPRESS_ALL_SERIAL_MSP
-    } // while
-  } // for
+    }
+  }
 }
 
 void evaluateCommand(uint8_t c) {
   uint32_t tmp=0; 
 
   switch(c) {
-    // adding this message as a comment will return an error status for MSP_PRIVATE (end of switch), allowing third party tools to distinguish the implementation of this message
-    //case MSP_PRIVATE:
-    //  headSerialError();tailSerialReply(); // we don't have any custom msp currently, so tell the gui we do not use that
-    //  break;
+    case MSP_PRIVATE:
+      //headSerialError();tailSerialReply(); // we don't have any custom msp currently, so tell the gui we do not use that
+      break;
     case MSP_SET_RAW_RC:
       s_struct_w((uint8_t*)&rcSerial,16);
       rcSerialCount = 50; // 1s transition 
@@ -289,7 +291,7 @@ void evaluateCommand(uint8_t c) {
       break;
     #if !defined(DISABLE_SETTINGS_TAB)
     case MSP_SET_MISC:
-      struct {
+      struct __attribute__ ((packed)) {
         uint16_t a,b,c,d,e,f;
         uint32_t g;
         uint16_t h;
@@ -315,7 +317,7 @@ void evaluateCommand(uint8_t c) {
       #endif
       break;
     case MSP_MISC:
-      struct {
+      struct __attribute__ ((packed)) {
         uint16_t a,b,c,d,e,f;
         uint32_t g;
         uint16_t h;
@@ -374,7 +376,7 @@ void evaluateCommand(uint8_t c) {
       s_struct_w((uint8_t*)&magHold,2);
       break;
     case MSP_IDENT:
-      struct {
+      struct __attribute__ ((packed)) {
         uint8_t v,t,msp_v;
         uint32_t cap;
       } id;
@@ -385,7 +387,7 @@ void evaluateCommand(uint8_t c) {
       s_struct((uint8_t*)&id,7);
       break;
     case MSP_STATUS:
-      struct {
+      struct __attribute__ ((packed)) {
         uint16_t cycleTime,i2c_errors_count,sensor;
         uint32_t flag;
         uint8_t set;
@@ -394,11 +396,14 @@ void evaluateCommand(uint8_t c) {
       st.i2c_errors_count = i2c_errors_count;
       st.sensor           = ACC|BARO<<1|MAG<<2|GPS<<3|SONAR<<4;
       #if ACC
-        if(f.ANGLE_MODE)   tmp |= 1<<BOXANGLE;
-        if(f.HORIZON_MODE) tmp |= 1<<BOXHORIZON;
+//        if(f.ANGLE_MODE)   tmp |= 1<<BOXANGLE;
+//        if(f.HORIZON_MODE) tmp |= 1<<BOXHORIZON;
+        if(f.ANGLE_MODE != 0)   tmp |= 1<<BOXANGLE;
+        if(f.HORIZON_MODE != 0) tmp |= 1<<BOXHORIZON;
       #endif
       #if BARO && (!defined(SUPPRESS_BARO_ALTHOLD))
-        if(f.BARO_MODE) tmp |= 1<<BOXBARO;
+//        if(f.BARO_MODE) tmp |= 1<<BOXBARO;
+        if(f.BARO_MODE != 0) tmp |= 1<<BOXBARO;
       #endif
       if(f.MAG_MODE) tmp |= 1<<BOXMAG;
       #if !defined(FIXEDWING)
@@ -476,15 +481,11 @@ void evaluateCommand(uint8_t c) {
       s_struct((uint8_t*)&motor,16);
       break;
     case MSP_ACC_TRIM:
-      headSerialReply(4);
-      s_struct_partial((uint8_t*)&conf.angleTrim[PITCH],2);
-      s_struct_partial((uint8_t*)&conf.angleTrim[ROLL],2);
-      tailSerialReply();
+      s_struct((uint8_t*)&conf.angleTrim[0],4);
       break;
     case MSP_SET_ACC_TRIM:
       mspAck();
-      s_struct_w((uint8_t*)&conf.angleTrim[PITCH],2);
-      s_struct_w((uint8_t*)&conf.angleTrim[ROLL],2);
+      s_struct_w((uint8_t*)&conf.angleTrim[0],4);
       break;
     case MSP_RC:
       s_struct((uint8_t*)&rcData,RC_CHANS*2);
@@ -737,14 +738,6 @@ void evaluateCommand(uint8_t c) {
 // evaluate all other incoming serial data
 void evaluateOtherData(uint8_t sr) {
   #ifndef SUPPRESS_OTHER_SERIAL_COMMANDS
-    #if GPS
-      #if !defined(I2C_GPS)
-        // on the GPS port, we must avoid interpreting incoming values for other commands because there is no
-        // protocol protection as is with MSP commands
-        // doing so with single chars would be prone to error.
-        if (CURRENTPORT == GPS_SERIAL) return;
-      #endif
-    #endif
     switch (sr) {
     // Note: we may receive weird characters here which could trigger unwanted features during flight.
     //       this could lead to a crash easily.
